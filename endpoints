@@ -1,0 +1,315 @@
+//Create a post
+app.post('/posts', (req, res) => {
+ console.log('Received POST request:', req.body);
+  const { location,description,duration,category,budget,uid} = req.body;
+  db.run('INSERT INTO posts (location,description,duration,category,budget,uid) VALUES (?,?,?,?,?,?)', [location,description,duration,category,budget,uid], function (err) {
+    
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+// Add a season
+app.post('/seasons', (req, res) => {
+console.log('Received Season request:', req.body);
+  const { season_name,postId} = req.body;
+  db.run('INSERT INTO seasons (season_name,postId) VALUES (?,?)', [season_name,postId], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+
+//Add itinerary
+app.post('/itinerary', (req, res) => {
+console.log('Received Itinerary request:', req.body);
+  const { postId,location,duration,uid} = req.body;
+  db.run('INSERT INTO itinerary (postId,location,duration,uid) VALUES (?,?,?,?)', [postId,location,duration,uid], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+//Add times
+app.post('/places', (req, res) => {
+console.log('Received places request:', req.body);
+  const { postId,dayNum,place} = req.body;
+  db.run('INSERT INTO places (postId,dayNum,place) VALUES (?,?,?)', [postId,dayNum,place], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+//Add times
+app.post('/times', (req, res) => {
+console.log('Received times request:', req.body);
+  const { postId,dayNum,time} = req.body;
+  db.run('INSERT INTO times (postId,dayNum,time) VALUES (?,?,?)', [postId,dayNum,time], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+//Create members
+app.post('/members', (req, res) => {
+ console.log('Received members request:', req.body);
+  const { tripId,ownerId,memberId,status,userName,fullName,age,phnum,residence,gender} = req.body;
+  db.run('INSERT INTO members (tripId,ownerId,memberId,status,userName,fullName,age,phnum,residence,gender) VALUES (?,?,?,?,?,?,?,?,?,?)', [tripId,ownerId,memberId,status,userName,fullName,age,phnum,residence,gender], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID });
+  });
+});
+
+// Set up Multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Save the uploaded files to the 'uploads' directory
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, Date.now() + ext); // Rename the file to avoid overwriting
+  },
+});
+
+const upload = multer({ storage: storage });
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+//Add Users(with profilePic)
+app.post('/users', upload.single('profilePic'), (req, res) => {
+  console.log('Received Users request:', req.body);
+
+  const { username, password,email, phone_num, country,uid} = req.body;
+
+  // Assuming 'image' is the name attribute of the file input in your form
+  const imagePath = req.file.path;
+
+  db.run(
+    'INSERT INTO users (username, password,email, phone_num, country,uid,profilePic) VALUES (?,?,?,?,?,?,?)',
+    [username, password,email, phone_num, country,uid,imagePath],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+// Add Trips
+app.post('/trips', upload.single('coverPhoto'), (req, res) => {
+  console.log('Received Trips request:', req.body);
+
+  const { title, desc, startDate, endDate, age1, age2, ownerId ,ownerPhn} = req.body;
+
+  // Assuming 'image' is the name attribute of the file input in your form
+  const imagePath = req.file.path;
+
+  db.run(
+    'INSERT INTO trips (title, desc, startDate, endDate, age1, age2, ownerId, ownerPhn,coverPhoto) VALUES (?,?,?,?,?,?,?,?,?)',
+    [title, desc, startDate, endDate, age1, age2, ownerId,ownerPhn,imagePath],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+
+//Endpoints to retrieve data
+
+// Retrieve Trips
+app.get('/trips', (req, res) => {
+  db.all('SELECT * FROM trips', (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Retrieve a single trip by ID
+app.get('/trips/:tripId', (req, res) => {
+  const tripId = req.params.tripId;
+  db.get('SELECT * FROM trips WHERE tripId = ?', [tripId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(row);
+  });
+});
+
+// Retrieve all members by tripId
+app.get('/members/:tripId', (req, res) => {
+  const tripId = req.params.tripId;
+  db.all('SELECT * FROM members WHERE tripId = ?', [tripId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Retrieve  member by tripId and memberId
+app.get('/members/:tripId/:memberId', (req, res) => {
+  const { memberId, tripId } = req.params;
+  db.get('SELECT * FROM members WHERE tripId = ? and memberId = ?', [tripId, memberId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(row);
+  });
+});
+
+//Get Post details
+app.get('/posts', (req, res) => {
+  // Query the database to retrieve a list of posts
+  db.all('SELECT * FROM posts', (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    // If successful, send the list of posts as a JSON response
+    res.json(rows);
+  });
+});
+
+ // Show posts by uid
+app.get('/posts/:uid', (req, res) => {
+  console.log('Received posts by uid request:', req.params.uid);
+  const uid = req.params.uid;
+  db.all('SELECT * FROM posts WHERE uid = ?', [uid], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+ // Show posts by category
+app.get('/posts/category/:category', (req, res) => {
+  console.log('Received posts by category request:', req.params.category);
+  const category = req.params.category;
+  db.all('SELECT * FROM posts WHERE category = ?', [category], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+ // Show posts by uid
+app.get('/users/:uid', (req, res) => {
+  console.log('Received users by uid request:', req.params.uid);
+  const uid = req.params.uid;
+  db.all('SELECT * FROM users WHERE uid = ?', [uid], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/seasons', (req, res) => {
+console.log('Received seasons');
+  const postId = req.query.postId; // Get the postId from the query parameter
+  // Query the database to retrieve a list of seasons associated with the given postId
+  db.all('SELECT * FROM seasons WHERE postId = ?', [postId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    // If successful, send the list of seasons as a JSON response
+    res.json(rows);
+  });
+});
+
+app.get('/itinerary', (req, res) => {
+console.log('Received iti');
+  const postId = req.query.postId; // Get the postId from the query parameter
+  // Query the database to retrieve a list of seasons associated with the given postId
+  db.all('SELECT * FROM itinerary WHERE postId = ?', [postId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    // If successful, send the list of seasons as a JSON response
+    res.json(rows);
+  });
+});
+
+app.get('/places', (req, res) => {
+console.log('Received places');
+  const postId = req.query.postId; // Get the postId from the query parameter
+  db.all('SELECT * from places where postId = ?', [postId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/times', (req, res) => {
+console.log('Received times');
+  const postId = req.query.postId; // Get the postId from the query parameter
+  db.all('SELECT * from times WHERE postId = ?', [postId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+
+ // Update member status by ID
+ app.put('/members/:memberId/:tripId', (req, res) => {
+   const { memberId,tripId } = req.params;
+   const { status } = req.body;
+   db.run('UPDATE members SET status = ? WHERE memberId = ? and tripId=? ', [status, memberId,tripId], function (err) {
+     if (err) {
+       return res.status(500).json({ error: err.message });
+     }
+     res.json({ changes: this.changes });
+   });
+ });
+
+// Delete member by ID
+app.delete('/members/:memberId/:tripId', async (req, res) => {
+  try {
+    const { memberId, tripId } = req.params;
+
+    // Ensure memberId and tripId are valid before proceeding with the deletion
+
+    const result = await db.run('DELETE FROM members WHERE memberId = ? AND tripId = ?', [memberId, tripId]);
+
+    if (result.changes > 0) {
+      res.json({ deleted: true });
+    } else {
+      res.status(404).json({ error: 'Member not found' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
